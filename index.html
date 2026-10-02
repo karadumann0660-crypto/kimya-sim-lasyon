@@ -1,350 +1,421 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gelişmiş Kimyasal Tepkime & Bilesik Simülasyonu</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #090d16; color: #f8fafc; overflow-x: hidden; }
-        
-        .app-container { display: flex; height: 100vh; width: 100vw; }
-        
-        /* Sol Panel - Elementler ve Bileşikler */
-        #sidebar {
-            width: 380px; background: rgba(15, 23, 42, 0.95); border-right: 1px solid rgba(255,255,255,0.1);
-            display: flex; flex-direction: column; padding: 15px; gap: 15px; z-index: 10; backdrop-filter: blur(10px);
-        }
-        
-        h2 { font-size: 1.1rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px; }
-        
-        .search-box { padding: 8px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #fff; width: 100%; font-size: 0.85rem; }
-        
-        .category-title { font-size: 0.8rem; color: #94a3b8; font-weight: bold; margin-top: 5px; }
-        
-        .grid-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 220px; overflow-y: auto; padding-right: 4px; }
-        
-        .chem-btn {
-            background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px 4px;
-            color: #e2e8f0; font-size: 0.78rem; text-align: center; cursor: pointer; transition: 0.2s;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .chem-btn:hover { background: #0284c7; border-color: #38bdf8; color: #fff; transform: translateY(-2px); }
-        .chem-btn span.symbol { font-weight: bold; font-size: 0.95rem; color: #38bdf8; }
-        
-        /* Sağ Panel - Deney Tüpü & Laboratuvar */
-        #lab-view { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%); }
-        
-        #beaker-container { position: relative; width: 220px; height: 380px; }
-        
-        /* Cam Beher / Deney Tüpü Görseli */
-        .beaker {
-            position: absolute; bottom: 0; width: 100%; height: 320px;
-            border: 4px solid rgba(255, 255, 255, 0.5); border-top: none; border-radius: 0 0 30px 30px;
-            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(2px);
-            box-shadow: 0 0 25px rgba(56, 189, 248, 0.15), inset 0 0 15px rgba(255, 255, 255, 0.1);
-            overflow: hidden;
-        }
-        
-        .beaker-marks {
-            position: absolute; right: 10px; top: 40px; bottom: 20px; width: 15px;
-            display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end;
-            opacity: 0.4; font-size: 0.65rem; color: #fff;
-        }
-        .mark { width: 10px; height: 1px; background: #fff; }
-        
-        /* Sıvı ve Çökelek */
-        #liquid {
-            position: absolute; bottom: 0; width: 100%; height: 0%;
-            background: rgba(56, 189, 248, 0.4); transition: height 0.8s ease, background-color 1s ease;
-        }
-        
-        #precipitate {
-            position: absolute; bottom: 0; width: 100%; height: 0px;
-            background: #fff; opacity: 0; transition: all 1s ease;
-        }
-
-        /* Gaz / Baloncuk Efekti */
-        .bubble {
-            position: absolute; background: rgba(255, 255, 255, 0.6); border-radius: 50%;
-            animation: rise 1.5s infinite ease-in;
-        }
-        @keyframes rise {
-            0% { bottom: 0; opacity: 0; transform: translateX(0) scale(0.5); }
-            50% { opacity: 1; }
-            100% { bottom: 100%; opacity: 0; transform: translateX(10px) scale(1.2); }
-        }
-
-        /* Alev / Reaksiyon Efekti */
-        #explosion {
-            position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%) scale(0);
-            width: 150px; height: 150px; background: radial-gradient(circle, #f97316 0%, #ef4444 60%, transparent 100%);
-            border-radius: 50%; opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; pointer-events: none;
-        }
-
-        /* Gösterge Panelleri */
-        #dashboard {
-            position: absolute; top: 20px; right: 20px; width: 300px;
-            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-        }
-        
-        .metric { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem; }
-        .metric-value { font-weight: bold; color: #38bdf8; }
-        
-        #reaction-log {
-            margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.15);
-            font-size: 0.8rem; color: #cbd5e1; max-height: 120px; overflow-y: auto;
-        }
-        
-        .equation {
-            background: rgba(0,0,0,0.4); padding: 8px; border-radius: 6px; font-family: monospace;
-            color: #4ade80; font-size: 0.9rem; text-align: center; margin-top: 8px; word-break: break-all;
-        }
-
-        .action-btns { display: flex; gap: 8px; margin-top: 10px; }
-        .btn-reset { flex: 1; padding: 8px; background: #ef4444; color: #fff; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .btn-reset:hover { background: #dc2626; }
-        
-        #added-list { font-size: 0.8rem; color: #94a3b8; margin-top: 5px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tanecik Bağlanma Simülasyonu (2D / 3D)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #0d0f17;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+    }
+    #canvas2d, #canvas3d {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #canvas3d {
+      display: none;
+    }
+    .controls {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(20, 24, 38, 0.85);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 18px 22px;
+      border-radius: 14px;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+      min-width: 240px;
+    }
+    .controls h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #38ef7d;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .control-group label {
+      font-size: 13px;
+      color: #a0aec0;
+      display: flex;
+      justify-content: space-between;
+    }
+    .mode-toggle {
+      display: flex;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 4px;
+      gap: 4px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: transparent;
+      color: #a0aec0;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.3s ease;
+    }
+    .mode-btn.active {
+      background: #11998e;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(17, 153, 142, 0.4);
+    }
+    input[type=range] {
+      width: 100%;
+      accent-color: #38ef7d;
+      cursor: pointer;
+    }
+    .btn-reset {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .btn-reset:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(56, 239, 125, 0.3);
+    }
+  </style>
+  <!-- Three.js (3D Görselleştirme İçin) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-<div class="app-container">
-    <!-- SOL SEÇİM PANELERİ -->
-    <div id="sidebar">
-        <h2>Laboratuvar Reaktifleri</h2>
-        <input type="text" class="search-box" id="searchInput" placeholder="Element veya bileşik ara (Örn: HCl, Na)...">
+  <canvas id="canvas2d"></canvas>
+  <div id="canvas3d"></div>
 
-        <div class="category-title">Metalleri / Elementler</div>
-        <div class="grid-container" id="metalsGrid"></div>
-
-        <div class="category-title">Asitler & Bazlar</div>
-        <div class="grid-container" id="acidBaseGrid"></div>
-
-        <div class="category-title">Tuzlar & Çözeltiler</div>
-        <div class="grid-container" id="saltsGrid"></div>
-
-        <div class="category-title">İndikatörler & Su</div>
-        <div class="grid-container" id="othersGrid"></div>
+  <div class="controls">
+    <h3>Mod Seçimi</h3>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn2D" onclick="setMode('2D')">2 Boyut</button>
+      <button class="mode-btn" id="btn3D" onclick="setMode('3D')">3 Boyut</button>
     </div>
 
-    <!-- SAĞ REAKSİYON ALANI -->
-    <div id="lab-view">
-        <div id="beaker-container">
-            <div class="beaker">
-                <div id="liquid"></div>
-                <div id="precipitate"></div>
-                <div id="bubbles-container"></div>
-            </div>
-            <div class="beaker-marks">
-                <div class="mark"></div><div>250ml</div>
-                <div class="mark"></div><div>200ml</div>
-                <div class="mark"></div><div>150ml</div>
-                <div class="mark"></div><div>100ml</div>
-                <div class="mark"></div><div>50ml</div>
-            </div>
-            <div id="explosion"></div>
-        </div>
-
-        <!-- DİNANİK DASHBOARD -->
-        <div id="dashboard">
-            <h2>Tepkime Durumu</h2>
-            
-            <div class="metric"><span>Çözelti Sıcaklığı:</span><span id="tempVal" class="metric-value">22 °C</span></div>
-            <div class="metric"><span>Çözelti pH Değeri:</span><span id="phVal" class="metric-value">7.0 (Nötr)</span></div>
-            <div class="metric"><span>Fiziksel Durum:</span><span id="stateVal" class="metric-value">Durgun</span></div>
-            
-            <div id="added-list">Eklenecek maddeleri soldan seçin...</div>
-            <div class="equation" id="eqVal">Tepkime Yok</div>
-
-            <div id="reaction-log">Behere henüz madde eklenmedi.</div>
-
-            <div class="action-btns">
-                <button class="btn-reset" onclick="resetLab()">Beheri Temizle</button>
-            </div>
-        </div>
+    <div class="control-group">
+      <label>Tanecik Sayısı: <span id="countVal">60</span></label>
+      <input type="range" id="particleCount" min="20" max="150" value="60" oninput="updateSettings()">
     </div>
-</div>
 
-<script>
-// VERİ KÜTÜPHANESİ (ELEMENTLER VE BİLEŞİKLER)
-const REAGENTS = [
-    { id: "H2O", name: "Saf Su", symbol: "H₂O", cat: "others", color: "rgba(56, 189, 248, 0.3)", ph: 7 },
-    { id: "Na", name: "Sodyum Metal", symbol: "Na", cat: "metals", color: "#e2e8f0", state: "solid" },
-    { id: "K", name: "Potasyum Metal", symbol: "K", cat: "metals", color: "#cbd5e1", state: "solid" },
-    { id: "Zn", name: "Çinko Metal", symbol: "Zn", cat: "metals", color: "#94a3b8", state: "solid" },
-    { id: "Fe", name: "Demir Tozu", symbol: "Fe", cat: "metals", color: "#475569", state: "solid" },
-    { id: "HCl", name: "Hidroklorik Asit", symbol: "HCl", cat: "acidBase", color: "rgba(238, 242, 255, 0.4)", ph: 1 },
-    { id: "HNO3", name: "Nitrik Asit", symbol: "HNO₃", cat: "acidBase", color: "rgba(254, 240, 138, 0.4)", ph: 1 },
-    { id: "NaOH", name: "Sodyum Hidroksit", symbol: "NaOH", cat: "acidBase", color: "rgba(240, 253, 250, 0.4)", ph: 14 },
-    { id: "AgNO3", name: "Gümüş Nitrat", symbol: "AgNO₃", cat: "salts", color: "rgba(241, 245, 249, 0.3)", ph: 6 },
-    { id: "NaCl", name: "Sodyum Klorür (Tuz)", symbol: "NaCl", cat: "salts", color: "rgba(255, 255, 255, 0.2)", ph: 7 },
-    { id: "CuSO4", name: "Bakır Sülfat", symbol: "CuSO₄", cat: "salts", color: "rgba(14, 165, 233, 0.7)", ph: 5 },
-    { id: "Phenol", name: "Fenolftalein", symbol: "Indik.", cat: "others", color: "rgba(255,255,255,0.1)", ph: 7 }
-];
+    <div class="control-group">
+      <label>Bağlanma Yavaşığı (Çekim): <span id="speedVal">Yavaş</span></label>
+      <input type="range" id="attractionSpeed" min="1" max="10" value="2" oninput="updateSettings()">
+    </div>
 
-let containerState = {
-    contents: [],
-    temp: 22,
-    ph: 7,
-    volume: 0,
-    color: "transparent",
-    precipitateColor: "transparent",
-    precipitateAmount: 0
-};
+    <div class="control-group">
+      <label>Bağlantı Mesafesi: <span id="distVal">150</span></label>
+      <input type="range" id="connectDist" min="80" max="300" value="150" oninput="updateSettings()">
+    </div>
 
-// ARAYÜZ YÜKLEME
-function initUI() {
-    REAGENTS.forEach(r => {
-        const btn = document.createElement('div');
-        btn.className = 'chem-btn';
-        btn.innerHTML = `<span class="symbol">${r.symbol}</span><span>${r.name}</span>`;
-        btn.onclick = () => addReagent(r);
-        
-        if (r.cat === 'metals') document.getElementById('metalsGrid').appendChild(btn);
-        else if (r.cat === 'acidBase') document.getElementById('acidBaseGrid').appendChild(btn);
-        else if (r.cat === 'salts') document.getElementById('saltsGrid').appendChild(btn);
-        else document.getElementById('othersGrid').appendChild(btn);
+    <button class="btn-reset" onclick="initSimulation()">Yeniden Başlat</button>
+  </div>
+
+  <script>
+    // Genel Ayarlar
+    let currentMode = '2D';
+    let pCount = 60;
+    let attractionForce = 0.0005; // Yavaşça bağlanma kuvveti
+    let maxDistance = 150;
+
+    // Canvas Elemanları
+    const canvas2d = document.getElementById('canvas2d');
+    const ctx2d = canvas2d.getContext('2d');
+    const container3d = document.getElementById('canvas3d');
+
+    // Three.js Değişkenleri
+    let scene, camera, renderer, particles3D = [], linesGroup3D;
+
+    // --- GENEL FONKSİYONLAR ---
+    function updateSettings() {
+      pCount = parseInt(document.getElementById('particleCount').value);
+      document.getElementById('countVal').innerText = pCount;
+
+      const speedRaw = parseInt(document.getElementById('attractionSpeed').value);
+      attractionForce = speedRaw * 0.00025; // Yavaş ve yumuşak çekim ivmesi
+      
+      if(speedRaw <= 3) document.getElementById('speedVal').innerText = "Çok Yavaş";
+      else if(speedRaw <= 7) document.getElementById('speedVal').innerText = "Orta";
+      else document.getElementById('speedVal').innerText = "Hızlı";
+
+      maxDistance = parseInt(document.getElementById('connectDist').value);
+      document.getElementById('distVal').innerText = maxDistance;
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('btn2D').classList.toggle('active', mode === '2D');
+      document.getElementById('btn3D').classList.toggle('active', mode === '3D');
+
+      if (mode === '2D') {
+        canvas2d.style.display = 'block';
+        container3d.style.display = 'none';
+      } else {
+        canvas2d.style.display = 'none';
+        container3d.style.display = 'block';
+        if (!renderer) init3D();
+      }
+      initSimulation();
+    }
+
+    function initSimulation() {
+      updateSettings();
+      if (currentMode === '2D') {
+        init2D();
+      } else {
+        init3DParticles();
+      }
+    }
+
+    // --- 2D SİMÜLASYONU ---
+    let particles2D = [];
+
+    function resize2D() {
+      canvas2d.width = window.innerWidth;
+      canvas2d.height = window.innerHeight;
+    }
+    window.addEventListener('resize', () => {
+      resize2D();
+      if (renderer) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
     });
-}
 
-// REAKTİF EKLEME VE REAKSİYON HESAPLAMA MOTORU
-function addReagent(item) {
-    containerState.contents.push(item.id);
-    containerState.volume = Math.min(250, containerState.volume + 50);
-    
-    log(`Behere <b>${item.name} (${item.symbol})</b> eklendi.`);
-    checkReactions();
-    updateVisuals();
-}
+    class Particle2D {
+      constructor() {
+        this.x = Math.random() * canvas2d.width;
+        this.y = Math.random() * canvas2d.height;
+        this.vx = (Math.random() - 0.5) * 0.8;
+        this.vy = (Math.random() - 0.5) * 0.8;
+        this.radius = 4;
+      }
 
-// REAKSİYON MANTIĞI & KURALLARI
-function checkReactions() {
-    const c = containerState.contents;
-    const eq = document.getElementById('eqVal');
-    
-    // 1. Şiddetli Metal + Su Reaksiyonu (Na/K + H2O)
-    if ((c.includes('Na') || c.includes('K')) && c.includes('H2O')) {
-        const metal = c.includes('K') ? 'Potasyum' : 'Sodyum';
-        eq.innerHTML = `2${c.includes('K')?'K':'Na'} + 2H₂O → 2${c.includes('K')?'KOH':'NaOH'} + H₂↑`;
-        containerState.temp += 45;
-        containerState.ph = 13;
-        triggerExplosion();
-        triggerBubbles();
-        log(`<span style="color:#ef4444;"><b>ŞİDDETLİ REAKSİYON!</b> ${metal} suyla tepkimeye girdi, H₂ gazı çıktı ve çözelti ısındı.</span>`);
-        containerState.contents = containerState.contents.filter(x => x !== 'Na' && x !== 'K');
-        containerState.color = "rgba(240, 253, 250, 0.6)";
-        return;
+      update() {
+        // Yumuşak Hareket
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Ekran Sınırlarından Sekme
+        if (this.x < 0 || this.x > canvas2d.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas2d.height) this.vy *= -1;
+      }
+
+      draw() {
+        ctx2d.beginPath();
+        ctx2d.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx2d.fillStyle = '#38ef7d';
+        ctx2d.shadowBlur = 10;
+        ctx2d.shadowColor = '#38ef7d';
+        ctx2d.fill();
+        ctx2d.shadowBlur = 0;
+      }
     }
 
-    // 2. Asit + Baz Nötralleşmesi (HCl + NaOH)
-    if (c.includes('HCl') && c.includes('NaOH')) {
-        eq.innerHTML = `HCl + NaOH → NaCl + H₂O (Ekzotermik)`;
-        containerState.temp += 18;
-        containerState.ph = 7;
-        containerState.color = "rgba(224, 242, 254, 0.4)";
-        log(`<span style="color:#4ade80;"><b>Nötralleşme gerçekleşti:</b> Isı açığa çıktı, Tuz (NaCl) ve Su oluştu. pH = 7.0</span>`);
-        containerState.contents = c.filter(x => x !== 'HCl' && x !== 'NaOH');
-        containerState.contents.push('NaCl');
-        return;
+    function init2D() {
+      resize2D();
+      particles2D = [];
+      for (let i = 0; i < pCount; i++) {
+        particles2D.push(new Particle2D());
+      }
     }
 
-    // 3. Çökelme Tepkimesi (AgNO3 + NaCl -> AgCl Çökeleği)
-    if (c.includes('AgNO3') && c.includes('NaCl')) {
-        eq.innerHTML = `AgNO₃ + NaCl → AgCl↓ (Beyaz Çökelek) + NaNO₃`;
-        containerState.precipitateColor = "#ffffff";
-        containerState.precipitateAmount = 25;
-        log(`<span style="color:#38bdf8;"><b>Çökelme Tepkimesi:</b> Suda çözünmeyen beyaz renkli Gümüş Klorür (AgCl) çökeleği oluştu.</span>`);
-        return;
+    function animate2D() {
+      if (currentMode === '2D') {
+        ctx2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
+
+        // Tanecikler arası etkileşim ve yavaşça bağlanma mantığı
+        for (let i = 0; i < particles2D.length; i++) {
+          for (let j = i + 1; j < particles2D.length; j++) {
+            let p1 = particles2D[i];
+            let p2 = particles2D[j];
+
+            let dx = p2.x - p1.x;
+            let dy = p2.y - p1.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < maxDistance) {
+              // Yavaşça birbirlerine doğru çekilme (Bağlanma kuvveti)
+              let force = (maxDistance - dist) * attractionForce;
+              let fx = (dx / dist) * force;
+              let fy = (dy / dist) * force;
+
+              p1.vx += fx;
+              p1.vy += fy;
+              p2.vx -= fx;
+              p2.vy -= fy;
+
+              // Bağlantı Çizgisi (Mesafe kısaldıkça belirginleşir)
+              let alpha = 1 - (dist / maxDistance);
+              ctx2d.beginPath();
+              ctx2d.moveTo(p1.x, p1.y);
+              ctx2d.lineTo(p2.x, p2.y);
+              ctx2d.strokeStyle = `rgba(17, 153, 142, ${alpha})`;
+              ctx2d.lineWidth = alpha * 2;
+              ctx2d.stroke();
+            }
+          }
+        }
+
+        // Hız Sınırlaması ve Sürtünme (Kararlı yavaş bağlanma için)
+        particles2D.forEach(p => {
+          p.vx *= 0.98;
+          p.vy *= 0.98;
+          p.update();
+          p.draw();
+        });
+      }
+      requestAnimationFrame(animate2D);
     }
 
-    // 4. Metal + Asit Tepkimesi (Zn + HCl -> H2 Gazı)
-    if (c.includes('Zn') && c.includes('HCl')) {
-        eq.innerHTML = `Zn + 2HCl → ZnCl₂ + H₂↑`;
-        containerState.temp += 12;
-        triggerBubbles();
-        log(`<b>Metal-Asit Reaksiyonu:</b> Çinko asitte çözündü, yoğun H₂ gazı kabarcıkları çıkıyor.`);
-        return;
+    // --- 3D SİMÜLASYONU (Three.js) ---
+    function init3D() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 400;
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      container3d.appendChild(renderer.domElement);
+
+      linesGroup3D = new THREE.Group();
+      scene.add(linesGroup3D);
+
+      animate3D();
     }
 
-    // 5. İndikatör Renk Değişimi (Fenolftalein + Baz)
-    if (c.includes('Phenol') && (c.includes('NaOH') || containerState.ph > 9)) {
-        containerState.color = "rgba(236, 72, 153, 0.7)"; // Pembe / Mor
-        log(`<span style="color:#ec4899;"><b>İndikatör Renk Değiştirdi:</b> Bazik ortamda Fenolftalein pembe renk aldı.</span>`);
-        return;
+    function init3DParticles() {
+      // Eski 3D nesneleri temizle
+      for (let i = scene.children.length - 1; i >= 0; i--) {
+        if (scene.children[i] !== linesGroup3D) scene.remove(scene.children[i]);
+      }
+      particles3D = [];
+
+      const geo = new THREE.SphereGeometry(2.5, 16, 16);
+      const mat = new THREE.MeshBasicMaterial({ color: 0x38ef7d });
+
+      for (let i = 0; i < pCount; i++) {
+        let mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(
+          (Math.random() - 0.5) * 350,
+          (Math.random() - 0.5) * 350,
+          (Math.random() - 0.5) * 350
+        );
+        mesh.userData = {
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: (Math.random() - 0.5) * 0.5,
+          vz: (Math.random() - 0.5) * 0.5
+        };
+        scene.add(mesh);
+        particles3D.push(mesh);
+      }
     }
 
-    // Tekli Ekleme Durumları
-    const last = REAGENTS.find(r => r.id === c[c.length - 1]);
-    if (last && last.color) {
-        containerState.color = last.color;
-        if(last.ph) containerState.ph = last.ph;
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+
+      if (currentMode === '3D' && renderer) {
+        // Sahneyi yavaşça döndür
+        scene.rotation.y += 0.0015;
+
+        // Çizgileri temizle
+        while(linesGroup3D.children.length > 0) { 
+          const obj = linesGroup3D.children[0];
+          linesGroup3D.remove(obj); 
+          if(obj.geometry) obj.geometry.dispose();
+        }
+
+        // Çekim ve Bağlanma Mantığı
+        for (let i = 0; i < particles3D.length; i++) {
+          for (let j = i + 1; j < particles3D.length; j++) {
+            let p1 = particles3D[i];
+            let p2 = particles3D[j];
+
+            let dist = p1.position.distanceTo(p2.position);
+
+            if (dist < maxDistance) {
+              // Yavaşça birbirlerine doğru çekilme
+              let force = (maxDistance - dist) * (attractionForce * 0.8);
+              let dir = new THREE.Vector3().subVectors(p2.position, p1.position).normalize();
+
+              p1.userData.vx += dir.x * force;
+              p1.userData.vy += dir.y * force;
+              p1.userData.vz += dir.z * force;
+
+              p2.userData.vx -= dir.x * force;
+              p2.userData.vy -= dir.y * force;
+              p2.userData.vz -= dir.z * force;
+
+              // Bağlantı Çizgisi Oluşturma
+              let alpha = 1 - (dist / maxDistance);
+              let lineMat = new THREE.LineBasicMaterial({
+                color: 0x11998e,
+                transparent: true,
+                opacity: alpha
+              });
+              let lineGeo = new THREE.BufferGeometry().setFromPoints([p1.position, p2.position]);
+              let line = new THREE.Line(lineGeo, lineMat);
+              linesGroup3D.add(line);
+            }
+          }
+        }
+
+        // Konum Güncelleme
+        particles3D.forEach(p => {
+          p.userData.vx *= 0.98;
+          p.userData.vy *= 0.98;
+          p.userData.vz *= 0.98;
+
+          p.position.x += p.userData.vx;
+          p.position.y += p.userData.vy;
+          p.position.z += p.userData.vz;
+
+          // Küresel sınır kontrolü (Merkeze geri çekme)
+          if(p.position.length() > 250) {
+            p.userData.vx -= p.position.x * 0.001;
+            p.userData.vy -= p.position.y * 0.001;
+            p.userData.vz -= p.position.z * 0.001;
+          }
+        });
+
+        renderer.render(scene, camera);
+      }
     }
-}
 
-// GÖRSEL GÜNCELLEMELER
-function updateVisuals() {
-    const liquid = document.getElementById('liquid');
-    const precip = document.getElementById('precipitate');
-    
-    // Sıvı Yüksekliği ve Rengi
-    liquid.style.height = (containerState.volume / 250 * 100) + '%';
-    liquid.style.backgroundColor = containerState.color;
-
-    // Çökelek
-    precip.style.height = containerState.precipitateAmount + 'px';
-    precip.style.backgroundColor = containerState.precipitateColor;
-    precip.style.opacity = containerState.precipitateAmount > 0 ? 1 : 0;
-
-    // Metrikler
-    document.getElementById('tempVal').innerText = containerState.temp + ' °C';
-    document.getElementById('phVal').innerText = containerState.ph.toFixed(1) + (containerState.ph < 7 ? ' (Asidik)' : containerState.ph > 7 ? ' (Bazik)' : ' (Nötr)');
-    
-    // Eklenecek Listesi
-    document.getElementById('added-list').innerText = "İçerik: " + (containerState.contents.join(', ') || "Boş");
-}
-
-function triggerBubbles() {
-    const container = document.getElementById('bubbles-container');
-    container.innerHTML = '';
-    for(let i=0; i<15; i++) {
-        const b = document.createElement('div');
-        b.className = 'bubble';
-        b.style.left = Math.random() * 80 + 10 + '%';
-        b.style.width = Math.random() * 8 + 4 + 'px';
-        b.style.height = b.style.width;
-        b.style.animationDelay = Math.random() * 1 + 's';
-        container.appendChild(b);
-    }
-    setTimeout(() => container.innerHTML = '', 4000);
-}
-
-function triggerExplosion() {
-    const exp = document.getElementById('explosion');
-    exp.style.transform = 'translate(-50%, -50%) scale(1.4)';
-    exp.style.opacity = '1';
-    setTimeout(() => {
-        exp.style.transform = 'translate(-50%, -50%) scale(0)';
-        exp.style.opacity = '0';
-    }, 600);
-}
-
-function log(msg) {
-    const logBox = document.getElementById('reaction-log');
-    logBox.innerHTML = `<div>• ${msg}</div>` + logBox.innerHTML;
-}
-
-function resetLab() {
-    containerState = { contents: [], temp: 22, ph: 7, volume: 0, color: "transparent", precipitateColor: "transparent", precipitateAmount: 0 };
-    document.getElementById('eqVal').innerText = "Tepkime Yok";
-    document.getElementById('reaction-log').innerText = "Beher temizlendi.";
-    updateVisuals();
-}
-
-window.onload = initUI;
-</script>
+    // Başlangıç
+    initSimulation();
+    animate2D();
+  </script>
 </body>
 </html>
