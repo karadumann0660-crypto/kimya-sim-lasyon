@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tanecik Bağlanma Simülasyonu (2D / 3D)</title>
+  <title>Kimyasal Molekül Bağlanma Simülasyonu (2D / 3D)</title>
   <style>
     * {
       box-sizing: border-box;
@@ -33,23 +33,23 @@
       position: absolute;
       top: 20px;
       right: 20px;
-      background: rgba(20, 24, 38, 0.85);
+      background: rgba(20, 24, 38, 0.9);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       padding: 18px 22px;
       border-radius: 14px;
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
       display: flex;
       flex-direction: column;
       gap: 12px;
       z-index: 10;
-      min-width: 240px;
+      min-width: 260px;
     }
     .controls h3 {
-      font-size: 16px;
-      font-weight: 600;
+      font-size: 15px;
+      font-weight: 700;
       color: #38ef7d;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       text-transform: uppercase;
       letter-spacing: 1px;
     }
@@ -61,8 +61,6 @@
     .control-group label {
       font-size: 13px;
       color: #a0aec0;
-      display: flex;
-      justify-content: space-between;
     }
     .mode-toggle {
       display: flex;
@@ -87,25 +85,46 @@
       color: #fff;
       box-shadow: 0 2px 8px rgba(17, 153, 142, 0.4);
     }
-    input[type=range] {
+    select, button.btn-action {
       width: 100%;
-      accent-color: #38ef7d;
-      cursor: pointer;
-    }
-    .btn-reset {
-      background: linear-gradient(135deg, #11998e, #38ef7d);
-      color: #fff;
-      border: none;
       padding: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 8px;
-      font-weight: 600;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
       cursor: pointer;
-      margin-top: 6px;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    .btn-reset:hover {
+    select option {
+      background: #141826;
+      color: #fff;
+    }
+    .btn-action {
+      background: linear-gradient(135deg, #11998e, #38ef7d);
+      border: none;
+      font-weight: 700;
+      transition: transform 0.2s;
+    }
+    .btn-action:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(56, 239, 125, 0.3);
+    }
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+      font-size: 11px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
     }
   </style>
   <!-- Three.js (3D Görselleştirme İçin) -->
@@ -124,54 +143,298 @@
     </div>
 
     <div class="control-group">
-      <label>Tanecik Sayısı: <span id="countVal">60</span></label>
-      <input type="range" id="particleCount" min="20" max="150" value="60" oninput="updateSettings()">
+      <label>Hazır Bileşik/Set Seçin:</label>
+      <select id="compoundSelect" onchange="loadCompound()">
+        <option value="H2O">Su (H₂O)</option>
+        <option value="CO2">Karbondioksit (CO₂)</option>
+        <option value="CH4">Metan (CH₄)</option>
+        <option value="NH3">Amonyak (NH₃)</option>
+        <option value="MIX">Karışık Serbest Atomlar</option>
+      </select>
     </div>
 
-    <div class="control-group">
-      <label>Bağlanma Yavaşığı (Çekim): <span id="speedVal">Yavaş</span></label>
-      <input type="range" id="attractionSpeed" min="1" max="10" value="2" oninput="updateSettings()">
+    <div class="legend">
+      <div class="legend-item"><div class="dot" style="background:#ffffff;"></div> H (Hidrojen)</div>
+      <div class="legend-item"><div class="dot" style="background:#ff4757;"></div> O (Oksijen)</div>
+      <div class="legend-item"><div class="dot" style="background:#30336b;"></div> C (Karbon)</div>
+      <div class="legend-item"><div class="dot" style="background:#70a1ff;"></div> N (Azot)</div>
     </div>
 
-    <div class="control-group">
-      <label>Bağlantı Mesafesi: <span id="distVal">150</span></label>
-      <input type="range" id="connectDist" min="80" max="300" value="150" oninput="updateSettings()">
-    </div>
-
-    <button class="btn-reset" onclick="initSimulation()">Yeniden Başlat</button>
+    <button class="btn-action" onclick="loadCompound()">Yeniden Başlat / Bağla</button>
   </div>
 
   <script>
-    // Genel Ayarlar
+    // Element Özellikleri (Kimyasal Standart Renk ve Boyutlar)
+    const ELEMENTS = {
+      H: { name: 'Hidrojen', color: '#ffffff', radius: 10, mass: 1 },
+      O: { name: 'Oksijen',  color: '#ff4757', radius: 18, mass: 16 },
+      C: { name: 'Karbon',   color: '#57606f', radius: 20, mass: 12 },
+      N: { name: 'Azot',     color: '#70a1ff', radius: 18, mass: 14 }
+    };
+
+    // Bileşik Tanımları (Hedef Bağlar)
+    const COMPOUNDS = {
+      H2O: {
+        atoms: ['O', 'H', 'H'],
+        targetBonds: [[0, 1], [0, 2]] // O-H bağları
+      },
+      CO2: {
+        atoms: ['C', 'O', 'O'],
+        targetBonds: [[0, 1], [0, 2]] // C-O bağları
+      },
+      CH4: {
+        atoms: ['C', 'H', 'H', 'H', 'H'],
+        targetBonds: [[0, 1], [0, 2], [0, 3], [0, 4]] // C-H bağları
+      },
+      NH3: {
+        atoms: ['N', 'H', 'H', 'H'],
+        targetBonds: [[0, 1], [0, 2], [0, 3]] // N-H bağları
+      },
+      MIX: {
+        atoms: ['C', 'O', 'O', 'H', 'H', 'H', 'H', 'N', 'H', 'H', 'H'],
+        targetBonds: []
+      }
+    };
+
     let currentMode = '2D';
-    let pCount = 60;
-    let attractionForce = 0.0005; // Yavaşça bağlanma kuvveti
-    let maxDistance = 150;
+    let currentCompoundKey = 'H2O';
 
     // Canvas Elemanları
     const canvas2d = document.getElementById('canvas2d');
     const ctx2d = canvas2d.getContext('2d');
     const container3d = document.getElementById('canvas3d');
 
-    // Three.js Değişkenleri
-    let scene, camera, renderer, particles3D = [], linesGroup3D;
+    // 2D Atom Mantığı
+    let atoms2D = [];
 
-    // --- GENEL FONKSİYONLAR ---
-    function updateSettings() {
-      pCount = parseInt(document.getElementById('particleCount').value);
-      document.getElementById('countVal').innerText = pCount;
+    class Atom2D {
+      constructor(type, x, y) {
+        this.type = type;
+        this.info = ELEMENTS[type];
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 1.5;
+        this.vy = (Math.random() - 0.5) * 1.5;
+      }
 
-      const speedRaw = parseInt(document.getElementById('attractionSpeed').value);
-      attractionForce = speedRaw * 0.00025; // Yavaş ve yumuşak çekim ivmesi
-      
-      if(speedRaw <= 3) document.getElementById('speedVal').innerText = "Çok Yavaş";
-      else if(speedRaw <= 7) document.getElementById('speedVal').innerText = "Orta";
-      else document.getElementById('speedVal').innerText = "Hızlı";
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
 
-      maxDistance = parseInt(document.getElementById('connectDist').value);
-      document.getElementById('distVal').innerText = maxDistance;
+        // Ekran Sınırlarından Yavaşça Sekme
+        if (this.x < 50 || this.x > canvas2d.width - 50) this.vx *= -0.8;
+        if (this.y < 50 || this.y > canvas2d.height - 50) this.vy *= -0.8;
+
+        this.vx *= 0.98; // Sürtünme
+        this.vy *= 0.98;
+      }
+
+      draw() {
+        ctx2d.beginPath();
+        ctx2d.arc(this.x, this.y, this.info.radius, 0, Math.PI * 2);
+        ctx2d.fillStyle = this.info.color;
+        ctx2d.fill();
+        ctx2d.lineWidth = 2;
+        ctx2d.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx2d.stroke();
+
+        // Element Sembolü
+        ctx2d.fillStyle = this.type === 'H' ? '#000' : '#fff';
+        ctx2d.font = 'bold 12px sans-serif';
+        ctx2d.textAlign = 'center';
+        ctx2d.textBaseline = 'middle';
+        ctx2d.fillText(this.type, this.x, this.y);
+      }
     }
 
+    function resize2D() {
+      canvas2d.width = window.innerWidth;
+      canvas2d.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize2D);
+
+    function init2DCompound() {
+      resize2D();
+      atoms2D = [];
+      const compound = COMPOUNDS[currentCompoundKey];
+      const centerX = canvas2d.width / 2;
+      const centerY = canvas2d.height / 2;
+
+      compound.atoms.forEach((elem) => {
+        // Dağınık konumlandır, yavaşça bağlansınlar
+        let offsetX = (Math.random() - 0.5) * 300;
+        let offsetY = (Math.random() - 0.5) * 300;
+        atoms2D.push(new Atom2D(elem, centerX + offsetX, centerY + offsetY));
+      });
+    }
+
+    function animate2D() {
+      if (currentMode === '2D') {
+        ctx2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
+
+        const compound = COMPOUNDS[currentCompoundKey];
+
+        // Hazır tanım bağlarına göre yavaşça çekim kuvveti uygula
+        if (compound.targetBonds.length > 0) {
+          compound.targetBonds.forEach(([i, j]) => {
+            let a1 = atoms2D[i];
+            let a2 = atoms2D[j];
+
+            if (a1 && a2) {
+              let dx = a2.x - a1.x;
+              let dy = a2.y - a1.y;
+              let dist = Math.sqrt(dx * dx + dy * dy);
+              let targetDist = a1.info.radius + a2.info.radius + 15; // İdeal bağ mesafesi
+
+              // Yavaş Çekim Kuvveti (Yay Modeli)
+              let force = (dist - targetDist) * 0.003;
+              let fx = (dx / dist) * force;
+              let fy = (dy / dist) * force;
+
+              a1.vx += fx;
+              a1.vy += fy;
+              a2.vx -= fx;
+              a2.vy -= fy;
+
+              // Bağ Çizgisi (Çift / Tek Kimyasal Bağ Çizimi)
+              ctx2d.beginPath();
+              ctx2d.moveTo(a1.x, a1.y);
+              ctx2d.lineTo(a2.x, a2.y);
+              ctx2d.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+              ctx2d.lineWidth = 4;
+              ctx2d.stroke();
+            }
+          });
+        }
+
+        atoms2D.forEach(atom => {
+          atom.update();
+          atom.draw();
+        });
+      }
+      requestAnimationFrame(animate2D);
+    }
+
+    // --- 3D SİMÜLASYONU (Three.js) ---
+    let scene, camera, renderer, atoms3D = [], bonds3DGroup;
+
+    function init3D() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 300;
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      container3d.appendChild(renderer.domElement);
+
+      // Ortam Işıkları
+      const light1 = new THREE.DirectionalLight(0xffffff, 1);
+      light1.position.set(1, 1, 1).normalize();
+      scene.add(light1);
+      scene.add(new THREE.AmbientLight(0x404040));
+
+      bonds3DGroup = new THREE.Group();
+      scene.add(bonds3DGroup);
+
+      animate3D();
+    }
+
+    function init3DCompound() {
+      // Temizle
+      atoms3D.forEach(a => scene.remove(a.mesh));
+      atoms3D = [];
+
+      const compound = COMPOUNDS[currentCompoundKey];
+
+      compound.atoms.forEach((elemType) => {
+        const info = ELEMENTS[elemType];
+        const geo = new THREE.SphereGeometry(info.radius * 0.6, 32, 32);
+        const mat = new THREE.MeshPhongMaterial({ 
+          color: info.color, 
+          shininess: 80 
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+
+        mesh.position.set(
+          (Math.random() - 0.5) * 150,
+          (Math.random() - 0.5) * 150,
+          (Math.random() - 0.5) * 150
+        );
+
+        mesh.userData = {
+          type: elemType,
+          info: info,
+          vx: 0, vy: 0, vz: 0
+        };
+
+        scene.add(mesh);
+        atoms3D.push(mesh);
+      });
+    }
+
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+
+      if (currentMode === '3D' && renderer) {
+        scene.rotation.y += 0.003; // Molekülün yavaş dönmesi
+
+        // 3D Bağları Temizle
+        while(bonds3DGroup.children.length > 0) { 
+          const obj = bonds3DGroup.children[0];
+          bonds3DGroup.remove(obj); 
+          if(obj.geometry) obj.geometry.dispose();
+        }
+
+        const compound = COMPOUNDS[currentCompoundKey];
+
+        if (compound.targetBonds.length > 0) {
+          compound.targetBonds.forEach(([i, j]) => {
+            let a1 = atoms3D[i];
+            let a2 = atoms3D[j];
+
+            if (a1 && a2) {
+              let p1 = a1.position;
+              let p2 = a2.position;
+              let dist = p1.distanceTo(p2);
+              let targetDist = (a1.userData.info.radius + a2.userData.info.radius) * 0.7;
+
+              // Yavaşça birbirlerine çekilme
+              let force = (dist - targetDist) * 0.002;
+              let dir = new THREE.Vector3().subVectors(p2, p1).normalize();
+
+              a1.userData.vx += dir.x * force;
+              a1.userData.vy += dir.y * force;
+              a1.userData.vz += dir.z * force;
+
+              a2.userData.vx -= dir.x * force;
+              a2.userData.vy -= dir.y * force;
+              a2.userData.vz -= dir.z * force;
+
+              // 3D Çubuk (Bağ) Çizimi
+              let lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, linewidth: 3 });
+              let lineGeo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+              let line = new THREE.Line(lineGeo, lineMat);
+              bonds3DGroup.add(line);
+            }
+          });
+        }
+
+        // Konum Güncelleme
+        atoms3D.forEach(a => {
+          a.userData.vx *= 0.95;
+          a.userData.vy *= 0.95;
+          a.userData.vz *= 0.95;
+
+          a.position.x += a.userData.vx;
+          a.position.y += a.userData.vy;
+          a.position.z += a.userData.vz;
+        });
+
+        renderer.render(scene, camera);
+      }
+    }
+
+    // --- MOD VE AYAR YÖNETİMİ ---
     function setMode(mode) {
       currentMode = mode;
       document.getElementById('btn2D').classList.toggle('active', mode === '2D');
@@ -185,236 +448,20 @@
         container3d.style.display = 'block';
         if (!renderer) init3D();
       }
-      initSimulation();
+      loadCompound();
     }
 
-    function initSimulation() {
-      updateSettings();
+    function loadCompound() {
+      currentCompoundKey = document.getElementById('compoundSelect').value;
       if (currentMode === '2D') {
-        init2D();
+        init2DCompound();
       } else {
-        init3DParticles();
-      }
-    }
-
-    // --- 2D SİMÜLASYONU ---
-    let particles2D = [];
-
-    function resize2D() {
-      canvas2d.width = window.innerWidth;
-      canvas2d.height = window.innerHeight;
-    }
-    window.addEventListener('resize', () => {
-      resize2D();
-      if (renderer) {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      }
-    });
-
-    class Particle2D {
-      constructor() {
-        this.x = Math.random() * canvas2d.width;
-        this.y = Math.random() * canvas2d.height;
-        this.vx = (Math.random() - 0.5) * 0.8;
-        this.vy = (Math.random() - 0.5) * 0.8;
-        this.radius = 4;
-      }
-
-      update() {
-        // Yumuşak Hareket
-        this.x += this.vx;
-        this.y += this.vy;
-
-        // Ekran Sınırlarından Sekme
-        if (this.x < 0 || this.x > canvas2d.width) this.vx *= -1;
-        if (this.y < 0 || this.y > canvas2d.height) this.vy *= -1;
-      }
-
-      draw() {
-        ctx2d.beginPath();
-        ctx2d.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx2d.fillStyle = '#38ef7d';
-        ctx2d.shadowBlur = 10;
-        ctx2d.shadowColor = '#38ef7d';
-        ctx2d.fill();
-        ctx2d.shadowBlur = 0;
-      }
-    }
-
-    function init2D() {
-      resize2D();
-      particles2D = [];
-      for (let i = 0; i < pCount; i++) {
-        particles2D.push(new Particle2D());
-      }
-    }
-
-    function animate2D() {
-      if (currentMode === '2D') {
-        ctx2d.clearRect(0, 0, canvas2d.width, canvas2d.height);
-
-        // Tanecikler arası etkileşim ve yavaşça bağlanma mantığı
-        for (let i = 0; i < particles2D.length; i++) {
-          for (let j = i + 1; j < particles2D.length; j++) {
-            let p1 = particles2D[i];
-            let p2 = particles2D[j];
-
-            let dx = p2.x - p1.x;
-            let dy = p2.y - p1.y;
-            let dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < maxDistance) {
-              // Yavaşça birbirlerine doğru çekilme (Bağlanma kuvveti)
-              let force = (maxDistance - dist) * attractionForce;
-              let fx = (dx / dist) * force;
-              let fy = (dy / dist) * force;
-
-              p1.vx += fx;
-              p1.vy += fy;
-              p2.vx -= fx;
-              p2.vy -= fy;
-
-              // Bağlantı Çizgisi (Mesafe kısaldıkça belirginleşir)
-              let alpha = 1 - (dist / maxDistance);
-              ctx2d.beginPath();
-              ctx2d.moveTo(p1.x, p1.y);
-              ctx2d.lineTo(p2.x, p2.y);
-              ctx2d.strokeStyle = `rgba(17, 153, 142, ${alpha})`;
-              ctx2d.lineWidth = alpha * 2;
-              ctx2d.stroke();
-            }
-          }
-        }
-
-        // Hız Sınırlaması ve Sürtünme (Kararlı yavaş bağlanma için)
-        particles2D.forEach(p => {
-          p.vx *= 0.98;
-          p.vy *= 0.98;
-          p.update();
-          p.draw();
-        });
-      }
-      requestAnimationFrame(animate2D);
-    }
-
-    // --- 3D SİMÜLASYONU (Three.js) ---
-    function init3D() {
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.z = 400;
-
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      container3d.appendChild(renderer.domElement);
-
-      linesGroup3D = new THREE.Group();
-      scene.add(linesGroup3D);
-
-      animate3D();
-    }
-
-    function init3DParticles() {
-      // Eski 3D nesneleri temizle
-      for (let i = scene.children.length - 1; i >= 0; i--) {
-        if (scene.children[i] !== linesGroup3D) scene.remove(scene.children[i]);
-      }
-      particles3D = [];
-
-      const geo = new THREE.SphereGeometry(2.5, 16, 16);
-      const mat = new THREE.MeshBasicMaterial({ color: 0x38ef7d });
-
-      for (let i = 0; i < pCount; i++) {
-        let mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(
-          (Math.random() - 0.5) * 350,
-          (Math.random() - 0.5) * 350,
-          (Math.random() - 0.5) * 350
-        );
-        mesh.userData = {
-          vx: (Math.random() - 0.5) * 0.5,
-          vy: (Math.random() - 0.5) * 0.5,
-          vz: (Math.random() - 0.5) * 0.5
-        };
-        scene.add(mesh);
-        particles3D.push(mesh);
-      }
-    }
-
-    function animate3D() {
-      requestAnimationFrame(animate3D);
-
-      if (currentMode === '3D' && renderer) {
-        // Sahneyi yavaşça döndür
-        scene.rotation.y += 0.0015;
-
-        // Çizgileri temizle
-        while(linesGroup3D.children.length > 0) { 
-          const obj = linesGroup3D.children[0];
-          linesGroup3D.remove(obj); 
-          if(obj.geometry) obj.geometry.dispose();
-        }
-
-        // Çekim ve Bağlanma Mantığı
-        for (let i = 0; i < particles3D.length; i++) {
-          for (let j = i + 1; j < particles3D.length; j++) {
-            let p1 = particles3D[i];
-            let p2 = particles3D[j];
-
-            let dist = p1.position.distanceTo(p2.position);
-
-            if (dist < maxDistance) {
-              // Yavaşça birbirlerine doğru çekilme
-              let force = (maxDistance - dist) * (attractionForce * 0.8);
-              let dir = new THREE.Vector3().subVectors(p2.position, p1.position).normalize();
-
-              p1.userData.vx += dir.x * force;
-              p1.userData.vy += dir.y * force;
-              p1.userData.vz += dir.z * force;
-
-              p2.userData.vx -= dir.x * force;
-              p2.userData.vy -= dir.y * force;
-              p2.userData.vz -= dir.z * force;
-
-              // Bağlantı Çizgisi Oluşturma
-              let alpha = 1 - (dist / maxDistance);
-              let lineMat = new THREE.LineBasicMaterial({
-                color: 0x11998e,
-                transparent: true,
-                opacity: alpha
-              });
-              let lineGeo = new THREE.BufferGeometry().setFromPoints([p1.position, p2.position]);
-              let line = new THREE.Line(lineGeo, lineMat);
-              linesGroup3D.add(line);
-            }
-          }
-        }
-
-        // Konum Güncelleme
-        particles3D.forEach(p => {
-          p.userData.vx *= 0.98;
-          p.userData.vy *= 0.98;
-          p.userData.vz *= 0.98;
-
-          p.position.x += p.userData.vx;
-          p.position.y += p.userData.vy;
-          p.position.z += p.userData.vz;
-
-          // Küresel sınır kontrolü (Merkeze geri çekme)
-          if(p.position.length() > 250) {
-            p.userData.vx -= p.position.x * 0.001;
-            p.userData.vy -= p.position.y * 0.001;
-            p.userData.vz -= p.position.z * 0.001;
-          }
-        });
-
-        renderer.render(scene, camera);
+        init3DCompound();
       }
     }
 
     // Başlangıç
-    initSimulation();
+    loadCompound();
     animate2D();
   </script>
 </body>
